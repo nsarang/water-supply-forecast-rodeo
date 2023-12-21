@@ -1,5 +1,7 @@
-import pandas as pd
 from collections import defaultdict
+
+import pandas as pd
+
 from .outlier import iqr_outliers
 
 
@@ -11,12 +13,13 @@ class DataProcessor:
     def preprocess_fit(self, X, y):
         for col, type in self.norm_cfg.items():
             if col == "__target__":
-                values = y
+                values = self._encode_y(y)
             else:
                 values = X[col]
             self._normalize_fit(X, values, type)
 
     def preprocess_transform(self, X, y=None, weight=None, mode="train"):
+        X = X.copy()
         if mode == "train":
             mask = (
                 y.groupby(X["site_id"])
@@ -28,32 +31,35 @@ class DataProcessor:
 
         for col, type in self.norm_cfg.items():
             if col == "__target__":
-                y = self._normalize_transform(X, y, type)
+                if y is not None:
+                    y = self._normalize_transform(X, y, col, type)
             else:
-                X.loc[:, col] = self._normalize_transform(X, X[col], type)
+                X.loc[:, col] = self._normalize_transform(X, X[col], col, type)
 
         return X, y, weight
 
     def postprocess_transform(self, X, y, mode="train"):
-        type = self.norm_cfg["__target__"]
-        return self._normalize_inverse_transform(X, y, type)
+        type = self.norm_cfg.get("__target__")
+        if type:
+            return self._normalize_inverse_transform(X, y, "__target__", type)
+        return y
 
     def _normalize_fit(self, X, feature, type):
         name = feature.name
         if type == "std":
             self.assets["norm"][name] = {
-                "mean": feature.groupby(X["site_id"]).mean().reset_index(name="mean"),
-                "std": feature.groupby(X["site_id"]).std().reset_index(name="std"),
+                "mean": feature.groupby(X["site_id"]).mean().rename("mean"),
+                "std": feature.groupby(X["site_id"]).std().rename("std") + 1e-18,
             }
         elif type == "md":
             self.assets["norm"][name] = {
-                "std": feature.groupby(X["site_id"]).std().reset_index(name="std")
+                "mean": feature.groupby(X["site_id"]).mean().rename("mean")
             }
         elif type == "basins_area":
             pass
 
-    def _normalize_transform(self, X, feature, type):
-        config = self.assets["norm"][feature.name]
+    def _normalize_transform(self, X, feature, name, type):
+        config = self.assets["norm"].get(name)
         if type == "std":
             mean, std = config["mean"], config["std"]
             mean, std = self._broadcast(X, mean), self._broadcast(X, std)
@@ -62,11 +68,11 @@ class DataProcessor:
             mean = self._broadcast(X, config["mean"])
             feature = feature / mean
         elif type == "basins_area":
-            feature = feature / X["basins_area"]
+            feature = feature / (X["basins_area"].values ** 3)
         return feature
 
-    def _normalize_inverse_transform(self, X, feature, type):
-        config = self.assets["norm"][feature.name]
+    def _normalize_inverse_transform(self, X, feature, name, type):
+        config = self.assets["norm"].get(name)
         if type == "std":
             mean, std = config["mean"], config["std"]
             mean, std = self._broadcast(X, mean), self._broadcast(X, std)
@@ -75,7 +81,7 @@ class DataProcessor:
             mean = self._broadcast(X, config["mean"])
             feature = feature * mean
         elif type == "basins_area":
-            feature = feature * X["basins_area"]
+            feature = feature * (X["basins_area"].values ** 3)
         return feature
 
     def _broadcast(self, X, series):
@@ -87,3 +93,6 @@ class DataProcessor:
             .to_numpy()
         )
         return scale_ordered
+
+    def _encode_y(self, y):
+        return pd.Series(y).rename("__target__")

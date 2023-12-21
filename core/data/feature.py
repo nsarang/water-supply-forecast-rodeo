@@ -1,7 +1,8 @@
-import pandas as pd
-import numpy as np
 from functools import reduce
 from operator import and_
+
+import numpy as np
+import pandas as pd
 
 
 def generate_timeseries_features(row, df_b, condition, date_col, feature_engineering=[]):
@@ -12,6 +13,7 @@ def generate_timeseries_features(row, df_b, condition, date_col, feature_enginee
     df_slice = df_prior.iloc[-100:].copy()
     for col in feature_engineering:
         df_slice[col + "_roll_max5"] = df_slice[col].rolling(window=5, min_periods=1).max()
+        df_slice[col + "_roll_min5"] = df_slice[col].rolling(window=5, min_periods=1).min()
         df_slice[col + "_roll_mean5"] = df_slice[col].rolling(window=5, min_periods=1).mean()
         df_slice[col + "_roll_std7"] = df_slice[col].rolling(window=7, min_periods=2).std()
         df_slice[col + "_ewm_mean7"] = df_slice[col].ewm(span=7).mean()

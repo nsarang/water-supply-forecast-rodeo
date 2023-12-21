@@ -1,10 +1,18 @@
+import sys
 import traceback
 import warnings
-import sys
+
 import matplotlib.pylab as plt
-import seaborn as sns
 import numpy as np
 import pandas as pd
+
+
+class Vector(list):
+    def __getattr__(self, key):
+        return Vector([getattr(instance, key) for instance in self])
+
+    def __call__(self, *args, **kwargs):
+        return [instance(*args, **kwargs) for instance in self]
 
 
 def warn_with_traceback(message, category, filename, lineno, file=None, line=None):
@@ -20,6 +28,8 @@ def plot_feature_importance(features, importance):
     """
     Plot feature importances of the RF model.
     """
+    import seaborn as sns
+
     importance = pd.DataFrame(dict(features=features, importance=importance))
     importance = importance.sort_values("importance", ascending=False)
 

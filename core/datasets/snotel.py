@@ -1,16 +1,18 @@
-import pandas as pd
-from core.config import SNOTEL_DIR
 from datetime import timedelta
-from .utils import haversine_distance, weighted_mean
-from .metadata import get_metadata
 
+import pandas as pd
+
+from core.config import SNOTEL_DIR
+
+from .metadata import get_metadata
+from .utils import haversine_distance, weighted_mean
 
 METADATA_DF = get_metadata()
 STATIONS_METADATA_DF = pd.read_csv(SNOTEL_DIR / "station_metadata.csv")
 STATIONS_MAPPING_DF = pd.read_csv(SNOTEL_DIR / "sites_to_snotel_stations.csv")
 
 
-def get_snotel_features(issue_date, lookback=15):
+def get_snotel_features(issue_date, lookback=15, separate_stations=False):
     issue_date = pd.to_datetime(issue_date)
     forecast_year = issue_date.year
     fy_data_dir = SNOTEL_DIR / f"FY{forecast_year}"
@@ -23,7 +25,14 @@ def get_snotel_features(issue_date, lookback=15):
         "TMIN_DAILY",
         "WTEQ_DAILY",
     ]
-    empty_df = pd.DataFrame(columns=feature_cols, index=METADATA_DF["site_id"])
+    station_cols = [
+        "elevation_station",
+        "latitude_station",
+        "longitude_station",
+        "distance_station",
+    ]
+    # empty_df = pd.DataFrame(columns=feature_cols, index=METADATA_DF["site_id"])
+    empty_df = pd.DataFrame()
 
     if len(files) == 0:
         return empty_df
@@ -47,13 +56,40 @@ def get_snotel_features(issue_date, lookback=15):
             on="stationTriplet",
         )
         .merge(
-            METADATA_DF[["site_id", "latitude", "longitude"]],
+            METADATA_DF[["site_id", "latitude", "longitude", "elevation"]],
             on="site_id",
             suffixes=("_station", "_site"),
         )
     )
-    snotel_features["weight"] = 1 / (haversine_distance(snotel_features))
-    snotel_features_agg = snotel_features.groupby(["site_id"]).apply(
-        weighted_mean, cols=feature_cols, weight_col="weight"
+    snotel_features["distance_station"] = haversine_distance(snotel_features)
+    snotel_features = snotel_features.query(
+        "elevation_station >= elevation_site & distance_station < 200"
+    ).copy()
+    snotel_features["weight"] = 1 / snotel_features["distance_station"]
+    stations_count = (
+        snotel_features.groupby(["site_id"])["stationTriplet"].nunique().rename("stations_count")
     )
+
+    if separate_stations:
+        snotel_features["in_basin"] = snotel_features["in_basin"].map(
+            {False: "out-basin", True: "in-basin"}
+        )
+        snotel_features_agg = (
+            (
+                snotel_features.groupby(["site_id", "in_basin"])
+                .apply(weighted_mean, cols=feature_cols, weight_col="weight")
+                .pivot_table(index=["site_id"], columns=["in_basin"])
+            )
+            .merge(stations_count, on="site_id")
+            .reset_index()
+        )
+        snotel_features_agg.columns = snotel_features_agg.columns.map("_".join)
+    else:
+        snotel_features_agg = (
+            snotel_features.groupby(["site_id"])
+            .apply(weighted_mean, cols=feature_cols + station_cols, weight_col="weight")
+            .merge(stations_count, on="site_id")
+            .reset_index()
+        )
+
     return snotel_features_agg
