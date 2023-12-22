@@ -14,6 +14,15 @@ class Vector(list):
     def __call__(self, *args, **kwargs):
         return [instance(*args, **kwargs) for instance in self]
 
+    def __getstate__(self):
+        # Return the state that needs to be pickled
+        return self.__dict__.copy(), list(self)
+
+    def __setstate__(self, state):
+        # Restore the state from the pickled state
+        self.__dict__, list_contents = state
+        self.extend(list_contents)
+
 
 def warn_with_traceback(message, category, filename, lineno, file=None, line=None):
     log = file if hasattr(file, "write") else sys.stderr

@@ -1,5 +1,6 @@
-/catboost_info
+*.pkl
 .DS_Store
+/catboost_info
 
 /data
 /submission

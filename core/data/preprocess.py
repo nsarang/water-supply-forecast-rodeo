@@ -34,7 +34,7 @@ class DataProcessor:
                 if y is not None:
                     y = self._normalize_transform(X, y, col, type)
             else:
-                X.loc[:, col] = self._normalize_transform(X, X[col], col, type)
+                X[col] = self._normalize_transform(X, X[col], col, type)
 
         return X, y, weight
 
@@ -57,6 +57,8 @@ class DataProcessor:
             }
         elif type == "basins_area":
             pass
+        elif type == "categorical":
+            self.assets["norm"][name] = feature.astype("category").cat.categories
 
     def _normalize_transform(self, X, feature, name, type):
         config = self.assets["norm"].get(name)
@@ -69,6 +71,8 @@ class DataProcessor:
             feature = feature / mean
         elif type == "basins_area":
             feature = feature / (X["basins_area"].values ** 3)
+        elif type == "categorical":
+            feature = pd.Categorical(feature, categories=config)
         return feature
 
     def _normalize_inverse_transform(self, X, feature, name, type):

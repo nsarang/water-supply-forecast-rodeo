@@ -20,4 +20,6 @@ PDO_FILE = DATA_ROOT / "teleconnections" / "pdo.txt"
 PNA_FILE = DATA_ROOT / "teleconnections" / "pna.txt"
 SOI_FILE = DATA_ROOT / "teleconnections" / "soi.txt"
 
+SHOW_PROGRESS_BAR = True
+
 logger.info(f"DATA_ROOT is {DATA_ROOT}")
