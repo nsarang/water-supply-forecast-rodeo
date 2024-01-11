@@ -1,31 +1,44 @@
-import pandas as pd
 from datetime import datetime
-from wsfr_read.climate.cpc_outlooks import read_cpc_outlooks_precip, read_cpc_outlooks_temp
-from .metadata import get_metadata
+
 import numpy as np
+import pandas as pd
+from wsfr_read.climate.cpc_outlooks import (
+    read_cpc_outlooks_precip,
+    read_cpc_outlooks_temp,
+)
+
+from .metadata import get_metadata
 
 METADATA_DF = get_metadata()
 
 
-def _preprocess_cpc_data(cpc_df, site_cds):
+def _preprocess_cpc_data(issue_date, cpc_df, site_cds, prev_inclusion=2):
     cpc_df = cpc_df.reset_index()
     cpc_df["date"] = cpc_df[["YEAR", "MN"]].apply(
         lambda r: datetime(r["YEAR"], r["MN"], 1), axis=1
     )
 
     latest_date = cpc_df["date"].max()
+    latest_month = latest_date.month
     site_df = cpc_df[cpc_df["date"] == latest_date].merge(site_cds, left_on="CD", right_on="cd")
 
-    lead_st = (site_df["season_start_month"] - latest_date.month) % 12
-    lead_end = (site_df["season_end_month"] - latest_date.month) % 12
-    site_df = site_df[site_df["LEAD"].between(lead_st, lead_end)].drop(
+    forecast_start = np.maximum(
+        site_df["season_start_month"] - prev_inclusion, issue_date.month
+    )  # TODO: issue date could be from previous year
+    forecast_end = site_df["season_end_month"]
+
+    lead_start = (forecast_start - latest_month) % 12
+    lead_end = (forecast_end - latest_month) % 12
+    site_df = site_df[site_df["LEAD"].between(lead_start, lead_end)].drop(
         columns=["season_start_month", "season_end_month"]
     )
     return site_df
 
 
-def get_cpc_data(issue_date):
-    site_cds = METADATA_DF[["site_id", "season_start_month", "season_end_month", "cd"]].explode(
+def get_cpc_data(issue_date, df_metadata=None):
+    if df_metadata is None:
+        df_metadata = METADATA_DF
+    site_cds = df_metadata[["site_id", "season_start_month", "season_end_month", "cd"]].explode(
         "cd"
     )
     try:

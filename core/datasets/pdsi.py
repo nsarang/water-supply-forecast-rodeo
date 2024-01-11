@@ -1,20 +1,22 @@
 import geopandas as gpd
-import xarray as xr
 import pandas as pd
+import xarray as xr
 
 from core.config import PDSI_DIR
-from .metadata import get_metadata
 
+from .metadata import get_metadata
 
 METADATA_DF = get_metadata()
 
 
-def get_pdsi_features(issue_date, radius1_km=100, radius2_km=300):
+def get_pdsi_features(issue_date, radius1_km=100, radius2_km=300, df_metadata=None):
+    if df_metadata is None:
+        df_metadata = METADATA_DF
     issue_date = pd.to_datetime(issue_date)
     forecast_year = issue_date.year
     year_data_dir = PDSI_DIR / f"FY{forecast_year}"
     files = list(year_data_dir.glob("*.nc"))
-    empty_df = pd.DataFrame(columns=["pdsi_1", "pdsi_2"], index=METADATA_DF["site_id"])
+    empty_df = pd.DataFrame(columns=["pdsi_1", "pdsi_2"], index=df_metadata["site_id"])
 
     if len(files) == 0:
         return empty_df
@@ -28,8 +30,8 @@ def get_pdsi_features(issue_date, radius1_km=100, radius2_km=300):
     pdsi_df = xds.isel(day=date_index).to_dataframe().reset_index()
 
     sites_gdf = gpd.GeoDataFrame(
-        METADATA_DF[["site_id", "latitude", "longitude"]],
-        geometry=gpd.points_from_xy(METADATA_DF.longitude, METADATA_DF.latitude),
+        df_metadata[["site_id", "latitude", "longitude"]],
+        geometry=gpd.points_from_xy(df_metadata.longitude, df_metadata.latitude),
         crs="EPSG:4326",
     ).to_crs("EPSG:5070")
 

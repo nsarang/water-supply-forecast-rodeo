@@ -70,8 +70,8 @@ def train_catboost(
 
     data_processor = DataProcessor(
         normalization_configuration={
-            "__target__": "md",
-            **{c: "md" for c in X_train.columns if c.startswith("volume_roll_mean5")},
+            "__target__": "std",
+            **{c: "md" for c in X_train.columns if c.startswith("volume")},
             **{
                 c: "std"
                 for c in X_train.columns
@@ -86,7 +86,7 @@ def train_catboost(
                         "basins_area",
                     ]
                 )
-                and (not c.startswith("volume_roll_mean5"))
+                and (not c.startswith("volume"))
             },
         }
     )
