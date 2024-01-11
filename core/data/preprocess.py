@@ -1,6 +1,8 @@
 from collections import defaultdict
 
+import numpy as np
 import pandas as pd
+from sklearn.preprocessing import QuantileTransformer
 
 from .outlier import iqr_outliers
 
@@ -49,7 +51,12 @@ class DataProcessor:
         if type == "std":
             self.assets["norm"][name] = {
                 "mean": feature.groupby(X["site_id"]).mean().rename("mean"),
-                "std": feature.groupby(X["site_id"]).std().rename("std") + 1e-18,
+                "std": feature.groupby(X["site_id"]).std().rename("std") + 1e-8,
+            }
+        elif type == "gstd":
+            self.assets["norm"][name] = {
+                "mean": feature.mean(),
+                "std": feature.std() + 1e-8,
             }
         elif type == "md":
             self.assets["norm"][name] = {
@@ -57,8 +64,12 @@ class DataProcessor:
             }
         elif type == "basins_area":
             pass
-        elif type == "categorical":
+        elif type in ["categorical", "categorical-codes"]:
             self.assets["norm"][name] = feature.astype("category").cat.categories
+        elif type == "quantile":
+            qt = QuantileTransformer(random_state=0)
+            feature = np.array(feature).reshape(-1, 1)
+            self.assets["norm"][name] = qt.fit(feature)
 
     def _normalize_transform(self, X, feature, name, type):
         config = self.assets["norm"].get(name)
@@ -66,13 +77,35 @@ class DataProcessor:
             mean, std = config["mean"], config["std"]
             mean, std = self._broadcast(X, mean), self._broadcast(X, std)
             feature = (feature - mean) / std
+            clip_value = 5
+            feature = np.clip(feature, -clip_value, clip_value)
+        elif type == "gstd":
+            mean, std = config["mean"], config["std"]
+            feature = (feature - mean) / std
+            clip_value = 5
+            feature = np.clip(feature, -clip_value, clip_value)
         elif type == "md":
             mean = self._broadcast(X, config["mean"])
             feature = feature / mean
+        # elif type == "smd":
+        #     mean = self._broadcast(X, config["mean"])
+        #     gt = feature >= mean
+        #     feature[gt] = feature / mean
+        #     feature[~gt] =  -mean / feature
         elif type == "basins_area":
             feature = feature / (X["basins_area"].values ** 3)
         elif type == "categorical":
-            feature = pd.Categorical(feature, categories=config)
+            feature = pd.Categorical(feature, categories=config) + 1
+        elif type == "categorical-codes":
+            feature = pd.Categorical(feature, categories=config).codes + 1
+        elif type == "quantile":
+            if not isinstance(feature, np.ndarray):
+                feature = np.array(feature)
+            if feature.ndim == 1:
+                feature = feature.reshape(-1, 1)
+                feature = config.transform(feature).squeeze()
+            else:
+                feature = np.array([config.transform(f.reshape(-1, 1) for f in feature)])
         return feature
 
     def _normalize_inverse_transform(self, X, feature, name, type):
@@ -81,11 +114,27 @@ class DataProcessor:
             mean, std = config["mean"], config["std"]
             mean, std = self._broadcast(X, mean), self._broadcast(X, std)
             feature = (feature * std) + mean
+        elif type == "gstd":
+            mean, std = config["mean"], config["std"]
+            feature = (feature * std) + mean
         elif type == "md":
             mean = self._broadcast(X, config["mean"])
             feature = feature * mean
+        # elif type == "smd":
+        #     mean = self._broadcast(X, config["mean"])
+        #     feature[] = feature * mean
         elif type == "basins_area":
             feature = feature * (X["basins_area"].values ** 3)
+        elif type == "quantile":
+            if not isinstance(feature, np.ndarray):
+                feature = np.array(feature)
+            if feature.ndim == 1:
+                feature = feature.reshape(-1, 1)
+                feature = config.inverse_transform(feature).squeeze()
+            else:
+                feature = np.array(
+                    [config.inverse_transform(f.reshape(-1, 1)).squeeze() for f in feature]
+                )
         return feature
 
     def _broadcast(self, X, series):
@@ -100,3 +149,7 @@ class DataProcessor:
 
     def _encode_y(self, y):
         return pd.Series(y).rename("__target__")
+
+
+def minmax_norm(series, baseline=0, scale=1):
+    return baseline + scale * (series - series.min()) / (series.max() - series.min())
