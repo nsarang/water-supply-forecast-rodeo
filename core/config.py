@@ -5,7 +5,9 @@ from loguru import logger
 
 DATA_ROOT = Path(os.getenv("WSFR_DATA_ROOT", Path.cwd() / "data"))
 METADATA_FILE = DATA_ROOT / "metadata.csv"
+
 GEOSPATIAL_FILE = DATA_ROOT / "geospatial.gpkg"
+CPC_CLIMATE_DIVISIONS_GEO_FILE = DATA_ROOT / "cpc_climate_divisions.gpkg"
 CDEC_SNOW_STATIONS_FILE = DATA_ROOT / "cdec_snow_stations.csv"
 
 GRACE_DIR = DATA_ROOT / "grace_indicators"

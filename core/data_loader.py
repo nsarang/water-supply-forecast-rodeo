@@ -121,7 +121,9 @@ def prepare_dataset(month, day, df_monthly_flow, df_targets=None):
         )
         cpc_dfs.append(get_cpc_data(issue_date).assign(issue_date=issue_date))
         cdec_dfs.append(
-            get_cdec_data(issue_date, lookback=30, max_distance=70).assign(issue_date=issue_date)
+            get_cdec_data(issue_date, lookback=30, max_distance_km=70).assign(
+                issue_date=issue_date
+            )
         )
         # grace_dfs.append(get_grace_features(issue_date, radius1_km=50, radius2_km=200).assign(issue_date=issue_date))
 
