@@ -1,6 +1,6 @@
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import List
+from typing import Any, Callable, List
 
 import catboost as cb
 import numpy as np
@@ -12,6 +12,23 @@ from core.datasets import *
 from core.models.catboost import train_catboost
 from core.models.lgbm import train_lgbm
 from core.utils import Vector
+
+
+@dataclass
+class InferenceEngine:
+    model: Any
+    data_processor: DataProcessor
+    preprocess_fn: Callable = None
+
+    def __call__(self, inputs):
+        if self.preprocess_fn is not None:
+            inputs = self.preprocess_fn(inputs)
+        features, *_ = self.data_processor.preprocess_transform(inputs, mode="val")
+        logits = self.model.predict(features)
+        prediction = self.data_processor.postprocess_transform(features, logits, mode="val")
+        return prediction
+
+    predict = __call__
 
 
 @dataclass
