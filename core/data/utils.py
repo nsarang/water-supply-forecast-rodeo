@@ -50,3 +50,7 @@ def _dx_cross_merge(
     )
     del result[cross_col]
     return result
+
+
+def dict_inter(dictionary, iterable):
+    return {k: v for k, v in dictionary.items() if k in iterable}

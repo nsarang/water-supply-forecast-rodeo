@@ -45,10 +45,12 @@ def get_cpc_data(issue_date, df_metadata=None):
         cpc_outlooks_precip = read_cpc_outlooks_precip(issue_date=issue_date, site_id=None)
         cpc_outlooks_temp = read_cpc_outlooks_temp(issue_date=issue_date, site_id=None)
     except:
-        return pd.DataFrame(columns=["precip_score", "precip_sd", "temp_mean", "temp_sd"])
+        return pd.DataFrame(
+            columns=["site_id", "precip_score", "precip_sd", "temp_mean", "temp_sd"]
+        )
 
-    site_precip = _preprocess_cpc_data(cpc_outlooks_precip, site_cds)
-    site_temp = _preprocess_cpc_data(cpc_outlooks_temp, site_cds)
+    site_precip = _preprocess_cpc_data(issue_date, cpc_outlooks_precip, site_cds)
+    site_temp = _preprocess_cpc_data(issue_date, cpc_outlooks_temp, site_cds)
 
     site_precip["precip_score"] = site_precip["F MEAN"] ** site_precip["POWER"]
     site_precip = site_precip.rename(columns={"F SD": "precip_sd"})

@@ -17,8 +17,8 @@ import core.recipes as recipes
 from core.config import SHOW_PROGRESS_BAR
 from core.data_loader import prepare_dataset
 from core.datasets import *
+from core.models.utils import Vector
 from core.train import train_util
-from core.utils import Vector
 
 
 def load_model(month, day, src_dir, data_dir, preprocessed_dir, assets):

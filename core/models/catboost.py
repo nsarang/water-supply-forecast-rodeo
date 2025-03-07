@@ -6,8 +6,8 @@ import numpy as np
 import pandas as pd
 
 from core.data.preprocess import DataProcessor
+from core.models.utils import Vector
 from core.objectives.pinball import pinball_loss
-from core.utils import Vector
 
 
 class CatBoostModelWrapper:

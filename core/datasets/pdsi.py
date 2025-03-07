@@ -16,7 +16,9 @@ def get_pdsi_features(issue_date, radius1_km=100, radius2_km=300, df_metadata=No
     forecast_year = issue_date.year
     year_data_dir = PDSI_DIR / f"FY{forecast_year}"
     files = list(year_data_dir.glob("*.nc"))
-    empty_df = pd.DataFrame(columns=["pdsi_1", "pdsi_2"], index=df_metadata["site_id"])
+    empty_df = pd.DataFrame(
+        columns=["pdsi_1", "pdsi_2"], index=df_metadata["site_id"]
+    ).reset_index()
 
     if len(files) == 0:
         return empty_df
@@ -65,6 +67,6 @@ def get_pdsi_features(issue_date, radius1_km=100, radius2_km=300, df_metadata=No
         joined2_gdf.groupby("site_id")["pdsi"].mean(),
         on="site_id",
         suffixes=("_1", "_2"),
-    )
+    ).reset_index()
 
     return pdsi_features

@@ -11,7 +11,7 @@ from objectives.quantile import QuantileLoss
 from torch.utils.data import DataLoader, TensorDataset
 
 from core.data.preprocess import DataProcessor
-from core.models.ema import EMA
+from core.models.nn.ema import EMA
 from core.models.nn.odst import ODST, DenseODST
 from core.objectives.pinball import pinball_loss
 
